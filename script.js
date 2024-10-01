@@ -1,83 +1,145 @@
-document.getElementById('userForm').addEventListener('submit', function(event) {
-    event.preventDefault();
+// Show and hide sections
+function showSection(sectionId) {
+    document.querySelectorAll('.section').forEach(section => {
+        section.classList.add('hidden');
+    });
+    document.getElementById(sectionId).classList.remove('hidden');
+}
 
-    const name = document.getElementById('name').value;
-    const address = document.getElementById('address').value;
-    const phone = document.getElementById('phone').value;
+// Login form handling
+document.getElementById('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
 
-    // Validate phone number
-    if (phone.length !== 10 || isNaN(phone)) {
-        alert("Phone number must be exactly 10 digits.");
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    fetch(`/login?username=${username}&password=${password}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSection('optionsSection');
+            } else if (data.message === 'wrong_password') {
+                alert('Incorrect password.');
+            } else if (data.message === 'not_signed_up') {
+                alert('Please sign up first.');
+            }
+        });
+});
+
+// Sign up form handling
+document.getElementById('signupForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const username = document.getElementById('signupUsername').value;
+    const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirmPassword').value;
+
+    if (password !== confirmPassword) {
+        alert('Passwords do not match');
         return;
     }
 
-    // Send data to the server to check for phone number duplication
+    fetch('/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('User registered successfully');
+            showSection('loginSection');
+        } else {
+            alert('Signup failed: ' + data.message);
+        }
+    });
+});
+
+// Navigation between sections
+document.getElementById('signupButton').addEventListener('click', function () {
+    showSection('signupSection');
+});
+
+document.getElementById('backToLogin').addEventListener('click', function () {
+    showSection('loginSection');
+});
+
+document.getElementById('addUserOption').addEventListener('click', function () {
+    showSection('addUserSection');
+});
+
+document.getElementById('viewUserOption').addEventListener('click', function () {
+    fetch('/view')
+        .then(response => response.json())
+        .then(users => {
+            const userTable = document.querySelector('#userTable tbody');
+            userTable.innerHTML = '';
+            users.forEach(user => {
+                const row = `
+                    <tr>
+                        <td>${user.name}</td>
+                        <td>${user.phone}</td>
+                        <td>${user.address}</td>
+                        <td>
+                            <button onclick="editUser(${user.id})">Edit</button>
+                            <button onclick="deleteUser(${user.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                userTable.insertAdjacentHTML('beforeend', row);
+            });
+        });
+    showSection('viewUserSection');
+});
+
+document.getElementById('filterButton').addEventListener('click', function () {
+    const filterText = document.getElementById('filter').value.toLowerCase();
+
+    fetch(`/filterUsers?filter=${filterText}`)
+        .then(response => response.json())
+        .then(users => {
+            const filteredUserList = document.querySelector('#filteredUserList tbody');
+            filteredUserList.innerHTML = '';
+            users.forEach(user => {
+                const row = `
+                    <tr>
+                        <td>${user.name}</td>
+                        <td>${user.phone}</td>
+                        <td>${user.address}</td>
+                    </tr>`;
+                filteredUserList.insertAdjacentHTML('beforeend', row);
+            });
+        });
+    showSection('filterUserSection');
+});
+
+document.getElementById('newUserForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value;
+    const phone = document.getElementById('phone').value;
+    const address = document.getElementById('address').value;
+
+    if (phone.length !== 10) {
+        alert('Phone number must be 10 digits.');
+        return;
+    }
+
     fetch(`/checkPhone?phone=${phone}`)
         .then(response => response.json())
         .then(data => {
             if (data.exists) {
                 alert('Phone number already exists.');
             } else {
-                // Get current date and time in ISO format
-                const currentDateTime = new Date().toISOString();
-
-                // Send data to the server in JSON format with the current date and time
                 fetch('/save', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ name, address, phone, date: currentDateTime }),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, address, phone, date: new Date() })
                 })
-                .then(response => {
-                    if (!response.ok) throw new Error('Failed to save user data.');
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    alert('User saved successfully!');
-                    document.getElementById('userForm').reset();
-                })
-                .catch((error) => {
-                    console.error('Error:', error);
+                    alert('User added successfully!');
+                    showSection('optionsSection');
                 });
             }
-        })
-        .catch((error) => {
-            console.error('Error:', error);
         });
 });
-
-document.getElementById('viewButton').addEventListener('click', function() {
-    fetch('/view')
-        .then(response => response.json())
-        .then(data => {
-            const userList = document.getElementById('userList');
-            userList.innerHTML = '<h2>User List</h2>';
-            data.forEach(user => {
-                userList.innerHTML += `
-                    <p>ID: ${user.id}, Name: ${user.name}, Address: ${user.address}, 
-                    Phone: ${user.phone}, Date: ${new Date(user.date).toLocaleString()}
-                    <button onclick="triggerWebhook(${user.id})">Send Notification</button>
-                    </p>`;
-            });
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
-});
-
-document.getElementById('clearButton').addEventListener('click', function() {
-    document.getElementById('userList').innerHTML = '';
-});
-
-// Trigger webhook when saved data is clicked
-function triggerWebhook(id) {
-    fetch(`/webhook/${id}`)
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to trigger webhook.');
-            alert('Webhook triggered successfully!');
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
-}

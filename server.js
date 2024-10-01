@@ -1,7 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
-const axios = require('axios');
 
 const app = express();
 const PORT = 3000;
@@ -13,9 +12,9 @@ app.use(express.static('.')); // Serve static files from the root directory
 // MySQL Database connection
 const db = mysql.createConnection({
     host: 'localhost',
-    user: 'root', // Your MySQL username
-    password: 'root@12345', // Your MySQL password
-    database: 'interndata' // Your database name
+    user: 'root',
+    password: 'root@12345',
+    database: 'interndata'
 });
 
 // Connect to the database
@@ -24,16 +23,44 @@ db.connect((err) => {
     console.log('Connected to MySQL database!');
 });
 
-// Route to check for phone number duplication
+// Route for signup
+app.post('/signup', (req, res) => {
+    const { username, password } = req.body;
+
+    const query = 'SELECT COUNT(*) AS count FROM signup WHERE username = ?';
+    db.query(query, [username], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result[0].count > 0) return res.json({ success: false, message: 'Username already exists' });
+
+        const insertQuery = 'INSERT INTO signup (username, password) VALUES (?, ?)';
+        db.query(insertQuery, [username, password], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+    });
+});
+
+// Route for login
+app.get('/login', (req, res) => {
+    const { username, password } = req.query;
+
+    const query = 'SELECT * FROM signup WHERE username = ?';
+    db.query(query, [username], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.length === 0) return res.json({ success: false, message: 'not_signed_up' });
+        if (result[0].password !== password) return res.json({ success: false, message: 'wrong_password' });
+
+        res.json({ success: true });
+    });
+});
+
+// Route to check phone number uniqueness
 app.get('/checkPhone', (req, res) => {
     const { phone } = req.query;
 
     const query = 'SELECT COUNT(*) AS count FROM userdata WHERE JSON_UNQUOTE(JSON_EXTRACT(user_data, "$.phone")) = ?';
-    
     db.query(query, [phone], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         res.json({ exists: result[0].count > 0 });
     });
 });
@@ -43,33 +70,17 @@ app.post('/save', (req, res) => {
     const { name, address, phone, date } = req.body;
 
     const query = 'INSERT INTO userdata (user_data) VALUES (JSON_OBJECT("name", ?, "address", ?, "phone", ?, "date", ?))';
-    
     db.query(query, [name, address, phone, date], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-
-        // Trigger the webhook after saving data
-        axios.post('https://webhook.site/126da263-950e-43bf-ad60-f2b8d9f3460f', { name, address, phone, date })
-            .then(() => {
-                console.log('Webhook triggered successfully');
-                res.status(200).json({ message: 'User saved!' });
-            })
-            .catch((error) => {
-                console.error('Error triggering webhook:', error);
-                res.status(200).json({ message: 'User saved, but failed to trigger webhook.' });
-            });
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'User saved!' });
     });
 });
 
-// Route to view user data
+// Route to view users
 app.get('/view', (req, res) => {
     const query = 'SELECT * FROM userdata';
-    
     db.query(query, (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         res.json(results.map(row => ({
             id: row.id,
             ...JSON.parse(row.user_data)
@@ -77,26 +88,53 @@ app.get('/view', (req, res) => {
     });
 });
 
-// Trigger webhook for a specific user
-app.get('/webhook/:id', (req, res) => {
-    const userId = req.params.id;
+// Route to filter users
+app.get('/filterUsers', (req, res) => {
+    const { filter } = req.query;
 
-    const query = 'SELECT user_data FROM userdata WHERE id = ?';
-    db.query(query, [userId], (err, result) => {
+    const query = 'SELECT * FROM userdata WHERE JSON_UNQUOTE(JSON_EXTRACT(user_data, "$.name")) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(user_data, "$.phone")) LIKE ?';
+    db.query(query, [`%${filter}%`, `%${filter}%`], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results.map(row => ({
+            id: row.id,
+            ...JSON.parse(row.user_data)
+        })));
+    });
+});
+
+// Route to get a user by id for editing
+app.get('/getUser', (req, res) => {
+    const { id } = req.query;
+
+    const query = 'SELECT * FROM userdata WHERE id = ?';
+    db.query(query, [id], (err, result) => {
         if (err || result.length === 0) {
             return res.status(404).json({ error: 'User not found.' });
         }
+        res.json(JSON.parse(result[0].user_data));
+    });
+});
 
-        const userData = JSON.parse(result[0].user_data);
+// Route to update user
+app.put('/updateUser', (req, res) => {
+    const { id } = req.query;
+    const { name, phone, address } = req.body;
 
-        axios.post('https://webhook.site/126da263-950e-43bf-ad60-f2b8d9f3460f', userData)
-            .then(() => {
-                res.json({ message: 'Webhook triggered successfully!' });
-            })
-            .catch((error) => {
-                console.error('Error triggering webhook:', error);
-                res.status(500).json({ error: 'Failed to trigger webhook.' });
-            });
+    const query = 'UPDATE userdata SET user_data = JSON_OBJECT("name", ?, "address", ?, "phone", ?) WHERE id = ?';
+    db.query(query, [name, address, phone, id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// Route to delete a user
+app.delete('/deleteUser', (req, res) => {
+    const { id } = req.query;
+
+    const query = 'DELETE FROM userdata WHERE id = ?';
+    db.query(query, [id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
     });
 });
 

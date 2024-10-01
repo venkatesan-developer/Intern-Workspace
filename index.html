@@ -3,38 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Form with Pagination and Filters</title>
+    <title>User Management System</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>User Information</h1>
-        <form id="userForm">
-            <label for="name">Name:</label>
-            <input type="text" id="name" name="name" required>
+        <h1>User Management System</h1>
 
-            <label for="address">Address:</label>
-            <input type="text" id="address" name="address" required>
+        <!-- Login Form -->
+        <div id="loginSection" class="section">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <input type="text" id="username" required placeholder="Enter your username">
+                <input type="password" id="password" required placeholder="Enter your password">
+                <div class="button-container">
+                    <button type="submit">Login</button>
+                </div>
+                <div class="button-container">
+                    <button type="button" id="signupButton">Sign Up</button>
+                </div>
+            </form>
+        </div>
 
-            <label for="phone">Phone Number:</label>
-            <input type="text" id="phone" name="phone" required>
+        <!-- Signup Form -->
+        <div id="signupSection" class="section hidden">
+            <h2>Sign Up</h2>
+            <form id="signupForm">
+                <input type="text" id="signupUsername" required placeholder="Enter your username">
+                <input type="password" id="signupPassword" required placeholder="Enter your password">
+                <input type="password" id="signupConfirmPassword" required placeholder="Confirm your password">
+                <div class="button-container">
+                    <button type="submit">Sign Up</button>
+                </div>
+                <div class="button-container">
+                    <button id="backToLogin" type="button">Back to Login</button>
+                </div>
+            </form>
+        </div>
 
-            <label for="fromDate">From Date:</label>
-            <input type="date" id="fromDate" name="fromDate">
+        <!-- Main Options Section -->
+        <div id="optionsSection" class="section hidden">
+            <h2>Options</h2>
+            <div class="button-container">
+                <button id="addUserOption">Add User</button>
+            </div>
+            <div class="button-container">
+                <button id="viewUserOption">View Users</button>
+            </div>
+            <div class="button-container">
+                <button id="filterUserOption">Filter Users</button>
+            </div>
+        </div>
 
-            <label for="toDate">To Date:</label>
-            <input type="date" id="toDate" name="toDate">
+        <!-- New User Form -->
+        <div id="addUserSection" class="section hidden">
+            <h2>Add New User</h2>
+            <form id="newUserForm">
+                <label for="name">Name:</label>
+                <input type="text" id="name" required placeholder="Enter your name">
+                <label for="phone">Phone:</label>
+                <input type="text" id="phone" required placeholder="Enter your phone number">
+                <label for="address">Address:</label>
+                <input type="text" id="address" required placeholder="Enter your address">
+                <div class="button-container">
+                    <button type="submit">Add User</button>
+                </div>
+            </form>
+            <div class="button-container">
+                <button id="backToOptionsFromAdd">Back</button>
+            </div>
+        </div>
 
-            <button type="submit">Save</button>
-            <button type="button" id="viewButton">View</button>
-            <button type="button" id="clearButton">Clear Viewed Data</button>
-        </form>
+        <!-- User List Section -->
+        <div id="viewUserSection" class="section hidden">
+            <h2>User List</h2>
+            <table id="userTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+            <div class="button-container">
+                <button id="backToOptionsFromView">Back</button>
+            </div>
+        </div>
 
-        <div id="userList"></div>
-
-        <div id="pagination">
-            <button id="prevPage">Previous</button>
-            <button id="nextPage">Next</button>
+        <!-- Filter Users Section -->
+        <div id="filterUserSection" class="section hidden">
+            <h2>Filter Users</h2>
+            <label for="filter">Filter by Name or Phone:</label>
+            <input type="text" id="filter" placeholder="Enter name or phone">
+            <div class="button-container">
+                <button id="filterButton">Filter</button>
+            </div>
+            <table id="filteredUserList">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+            <div class="button-container">
+                <button id="backToOptionsFromFilter">Back</button>
+            </div>
         </div>
     </div>
 
